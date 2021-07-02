@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BlogPlatform.Configurations;
 using BlogPlatform.Data;
 using BlogPlatform.Services;
 using Microsoft.AspNetCore.Builder;
@@ -41,6 +42,7 @@ namespace BlogPlatform
             services.AddControllersWithViews()
                 .AddNewtonsoftJson(options =>
                     options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
+            services.AddAutoMapper(typeof(MapperInitializer));
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo {Title = "BlogApi"});

@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using BlogPlatform.Data;
 using BlogPlatform.Models;
+using BlogPlatform.Models.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +18,11 @@ namespace BlogPlatform.Controllers
     public class ArticlesController : ControllerBase
     {
         private readonly AppDbContext _context;
-
-        public ArticlesController(AppDbContext context)
+        private IMapper _mapper;
+        public ArticlesController(AppDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -52,9 +55,9 @@ namespace BlogPlatform.Controllers
                 .Include(c=>c.Comments)
                 .Select(x => new
                 {
-                    ArticleId= x.ArticleId, Title = x.Title, Body = x.Body, Author = x.Author.DisplayName, 
+                    ArticleId = x.ArticleId, Title = x.Title, Body = x.Body, Author = x.Author.DisplayName, 
                     Tags = x.ArticleTags.Select(t => new {name = t.Tag.Name}).ToList(),
-                    Comments = x.Comments.Select(b=>new {body = b.Body}).ToList(),
+                    Comments = x.Comments.Select(b=> new {body = b.Body}).ToList(),
                     CreatedAt = x.CreatedAt
                 })
                 .FirstOrDefaultAsync();
@@ -69,29 +72,58 @@ namespace BlogPlatform.Controllers
         
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult<Article>> PostArticle(Article article)
+        public async Task<ActionResult<Article>> PostArticle(CreateArticleDto newArticle)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
+            
+            var article = _mapper.Map<Article>(newArticle);
             var user = await _context.Users.Where(u => u.UserName == User.Identity.Name).FirstAsync();
+            
             article.AuthorId = user.Id;
             article.CreatedAt = DateTime.Now;
             _context.Articles.Add(article);
+            foreach (var tag in article.Tags)
+            {
+                var newTag = await _context.Tags.AddAsync(new Tag() {Name = tag});
+                await _context.ArticleTags.AddAsync(new ArticleTag() {Article = article, Tag = newTag.Entity});
+            }
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetArticle), new {id = article.ArticleId});
         }
         
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<ActionResult> PutArticle(int id, Article updateArticle)
+        public async Task<ActionResult> PutArticle(int id, UpdateArticleDto article)
         {
-            var article = await _context.Articles.FindAsync(id);
-            if (article == null)
+            var oldArticle = await _context.Articles
+                .Include(at => at.ArticleTags)
+                .FirstOrDefaultAsync(a => a.ArticleId == id);
+            
+            if (oldArticle == null)
             {
                 return NotFound();
             }
 
-            article.Title = string.IsNullOrEmpty(updateArticle.Title) ? article.Title : updateArticle.Title;
-            article.Body = string.IsNullOrEmpty(updateArticle.Body) ? article.Body : updateArticle.Body;
-            _context.Articles.Update(article);
+            var updatedArticle = _mapper.Map<Article>(article);
+            oldArticle.Title = string.IsNullOrEmpty(updatedArticle.Title) ? oldArticle.Title : updatedArticle.Title;
+            oldArticle.Body = string.IsNullOrEmpty(updatedArticle.Body) ? oldArticle.Body : updatedArticle.Body;
+            oldArticle.ImageUrl = string.IsNullOrEmpty(updatedArticle.ImageUrl) ? oldArticle.ImageUrl : updatedArticle.ImageUrl;
+            oldArticle.UpdatedAt = DateTime.Now;
+            
+            if (updatedArticle.Tags != null)
+            {
+                oldArticle.ArticleTags = new List<ArticleTag>();
+                foreach (var tag in updatedArticle.Tags)
+                {
+                    var newTag = await _context.Tags.AddAsync(new Tag() {Name = tag});
+                    oldArticle.ArticleTags.Add(new ArticleTag() {Article = oldArticle, Tag = newTag.Entity});
+                }
+            }
+            
+            _context.Articles.Update(oldArticle);
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -100,7 +132,11 @@ namespace BlogPlatform.Controllers
         [Authorize]
         public async Task<ActionResult> DeleteArticle(int id)
         {
-            var article = await _context.Articles.FindAsync(id);
+            var article = await _context.Articles
+                .Include(at => at.ArticleTags)
+                .Include(c => c.Comments)
+                .FirstOrDefaultAsync(a => a.ArticleId == id);
+            
             if (article == null)
             {
                 return NotFound();
@@ -137,14 +173,17 @@ namespace BlogPlatform.Controllers
                 return NotFound();
             }
 
-            foreach (var tag in tags)
-            {
-                if (!string.IsNullOrWhiteSpace(tag.Name))
-                {
-                    var newTag = await _context.Tags.AddAsync(new Tag() {Name = tag.Name});
-                    await _context.ArticleTags.AddAsync(new ArticleTag() {Article = article, Tag = newTag.Entity});
-                }
-            }
+            await _context.Tags.AddRangeAsync(tags.Except(_context.Tags));
+
+
+            // foreach (var tag in tags)
+            // {
+            //     if (!string.IsNullOrWhiteSpace(tag.Name))
+            //     {
+            //         var newTag = await _context.Tags.AddAsync(new Tag() {Name = tag.Name});
+            //         await _context.ArticleTags.AddAsync(new ArticleTag() {Article = article, Tag = newTag.Entity});
+            //     }
+            // }
 
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetArticle), new {id = article.ArticleId});
