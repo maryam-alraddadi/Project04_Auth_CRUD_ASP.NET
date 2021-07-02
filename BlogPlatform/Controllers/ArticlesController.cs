@@ -46,28 +46,21 @@ namespace BlogPlatform.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<object>> GetArticle(int id)
+        public async Task<ActionResult<ArticleRsDto>> GetArticle(int id)
         {
             var article = await _context.Articles
                 .Where(a => a.ArticleId == id)
-                .Include(a => a.ArticleTags)
+                .Include(u => u.Author)
+                .Include(at => at.ArticleTags)
                 .ThenInclude(t => t.Tag)
-                .Include(c=>c.Comments)
-                .Select(x => new
-                {
-                    ArticleId = x.ArticleId, Title = x.Title, Body = x.Body, Author = x.Author.DisplayName, 
-                    Tags = x.ArticleTags.Select(t => new {name = t.Tag.Name}).ToList(),
-                    Comments = x.Comments.Select(b=> new {body = b.Body}).ToList(),
-                    CreatedAt = x.CreatedAt
-                })
                 .FirstOrDefaultAsync();
-            
+
             if (article == null)
             {
                 return NotFound();
             }
-
-            return article;
+  
+            return Ok(_mapper.Map<ArticleRsDto>(article));
         }
         
         [HttpPost]
@@ -147,67 +140,23 @@ namespace BlogPlatform.Controllers
             return NoContent();
         }
         
-        //get article by username
         [HttpGet("user/{username}")]
-        public async Task<ActionResult<IEnumerable<Article>>> GetArticleByUsername(string username)
+        public async Task<ActionResult<IEnumerable<ArticleRsDto>>> GetArticleByUsername(string username)
         {
-            var user = await _context.Users
-                .Include(a=>a.Articles)
-                .Where(u=>u.UserName==username)
-                .FirstOrDefaultAsync();
-            if (user == null)
-            {
-                return NotFound();
-            }
 
-            return user.Articles;
-        }
-        
-        [HttpPost("{id}/tags")]
-        [Authorize]
-        public async Task<ActionResult<IEnumerable<Tag>>> AddArticleTag(int id, [FromBody] List<Tag> tags)
-        {
-            var article = await _context.Articles.FindAsync(id);
-            if (article == null)
-            {
-                return NotFound();
-            }
-
-            await _context.Tags.AddRangeAsync(tags.Except(_context.Tags));
-
-
-            // foreach (var tag in tags)
-            // {
-            //     if (!string.IsNullOrWhiteSpace(tag.Name))
-            //     {
-            //         var newTag = await _context.Tags.AddAsync(new Tag() {Name = tag.Name});
-            //         await _context.ArticleTags.AddAsync(new ArticleTag() {Article = article, Tag = newTag.Entity});
-            //     }
-            // }
-
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetArticle), new {id = article.ArticleId});
-        }
-        
-        [HttpDelete("{id}/tags/{tagId}")]
-        [Authorize]
-        public async Task<ActionResult<IEnumerable<Tag>>> DeleteArticleTag(int id, int tagId)
-        {
-            var article = await _context.Articles
+            var userArticles = await _context.Articles
+                .Include(u => u.Author)
                 .Include(at => at.ArticleTags)
-                .FirstOrDefaultAsync(a => a.ArticleId == id);
-            if (article == null)
-            {
-                return NotFound();
-            }
-
-            var tag = article.ArticleTags.FirstOrDefault(t => t.TagId == tagId);
-            article.ArticleTags.Remove(tag);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetArticle), new {id = article.ArticleId});
+                .ThenInclude(t => t.Tag)
+                .Where(a => a.Author.UserName == username)
+                .ToListAsync();
+            
+            var articles = _mapper.Map<IEnumerable<Article> , IEnumerable<ArticleRsDto>>(userArticles);
+            
+            return Ok(articles);
         }
-
+        
+        
         [HttpGet("{id}/comments")]
         public async Task<ActionResult<IEnumerable<object>>> GetArticleComments(int id)
         {
