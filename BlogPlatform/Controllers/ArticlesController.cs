@@ -7,7 +7,6 @@ using BlogPlatform.Data;
 using BlogPlatform.Models;
 using BlogPlatform.Models.Dto;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +17,7 @@ namespace BlogPlatform.Controllers
     public class ArticlesController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private IMapper _mapper;
+        private readonly IMapper _mapper;
         public ArticlesController(AppDbContext context, IMapper mapper)
         {
             _context = context;
@@ -57,6 +56,7 @@ namespace BlogPlatform.Controllers
                 .Include(at => at.ArticleTags)
                 .ThenInclude(t => t.Tag)
                 .Include(c => c.Comments)
+                .ThenInclude(ca => ca.Author)
                 .FirstOrDefaultAsync();
 
             if (article == null)
@@ -168,6 +168,7 @@ namespace BlogPlatform.Controllers
                 .Include(c => c.Comments)
                 .ThenInclude(a=>a.Author)
                 .FirstOrDefaultAsync();
+            
             if (article == null)
             {
                 return NotFound();
@@ -184,30 +185,29 @@ namespace BlogPlatform.Controllers
         
         [HttpPost("{id}/comments")]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<Comment>>> AddComment(int id, Comment comment)
+        public async Task<ActionResult<ArticleRsDto>> AddComment(int id, CreateCommentDto newComment)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
+            
             var article = await _context.Articles.FindAsync(id);
             if (article == null)
             {
                 return NotFound();
             }
 
-            var user = await _context.Users
-                .Include(a => a.Articles)
-                .Where(u => u.UserName == User.Identity.Name)
-                .FirstOrDefaultAsync();
-            if (!string.IsNullOrWhiteSpace(comment.Body))
-            {
-                var newComment = await _context.Comments.AddAsync(new Comment()
-                {
-                    Body = comment.Body,
-                    CreatedAt = DateTime.Now,
-                    ArticleId = article.ArticleId,
-                    Author = user
-                });
-            }
+            var comment = _mapper.Map<Comment>(newComment);
+            var user = await _context.Users.Where(u => u.UserName == User.Identity.Name).FirstAsync();
 
+            comment.AuthorId = user.Id;
+            comment.ArticleId = article.ArticleId;
+            comment.CreatedAt = DateTime.Now;
+            
+            await _context.Comments.AddAsync(comment);
             await _context.SaveChangesAsync();
+            
             return CreatedAtAction(nameof(GetArticleComments), new {id = article.ArticleId});
         }
         

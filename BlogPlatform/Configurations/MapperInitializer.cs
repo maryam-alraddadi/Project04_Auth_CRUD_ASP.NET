@@ -20,6 +20,7 @@ namespace BlogPlatform.Configurations
             CreateMap<Person, AuthorDto>().ReverseMap();
             CreateMap<Tag, TagDto>().ReverseMap();
             CreateMap<Comment, CommentDto>().ReverseMap();
+            CreateMap<Comment, CreateCommentDto>().ReverseMap();
         }
     }
 }

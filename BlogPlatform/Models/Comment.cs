@@ -12,7 +12,7 @@ namespace BlogPlatform.Models
         [JsonIgnore]
         public Person Author { get; set; }
         [JsonIgnore] 
-        public int AuthorId { get; set; }
+        public string AuthorId { get; set; }
 
         [JsonIgnore] 
         public Article Article { get; set; }
