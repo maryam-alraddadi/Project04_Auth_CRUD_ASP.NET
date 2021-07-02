@@ -26,23 +26,26 @@ namespace BlogPlatform.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetArticles(string search)
+        public async Task<ActionResult<IEnumerable<ArticleRsDto>>> GetArticles(string search)
         {
             if (string.IsNullOrEmpty(search))
             {
-                return await _context.Articles
-                    .Include(a=>a.Author)
-                    .Select(x => new
-                    {
-                       ArticleId = x.ArticleId, Title= x.Title, Body=x.Body,
-                       Tags = x.ArticleTags.Select(t => new {name = t.Tag.Name}).ToList(),
-                       Author = x.Author.DisplayName,
-                       CreatedAt = x.CreatedAt
-                    })
+                var articles =  await _context.Articles
+                    .Include(u => u.Author)
+                    .Include(at => at.ArticleTags)
+                    .ThenInclude(t => t.Tag)
                     .ToListAsync();
+                return Ok(_mapper.Map<IEnumerable<ArticleRsDto>>(articles));
             }
 
-            return await _context.Articles.Where(a => a.Title.Contains(search)).ToListAsync();
+            var resultArticles = await _context.Articles
+                .Include(u => u.Author)
+                .Include(at => at.ArticleTags)
+                .ThenInclude(t => t.Tag)
+                .Where(a => a.Title.Contains(search))
+                .ToListAsync();
+            
+            return Ok(_mapper.Map<IEnumerable<ArticleRsDto>>(resultArticles));
         }
 
         [HttpGet("{id}")]
@@ -53,6 +56,7 @@ namespace BlogPlatform.Controllers
                 .Include(u => u.Author)
                 .Include(at => at.ArticleTags)
                 .ThenInclude(t => t.Tag)
+                .Include(c => c.Comments)
                 .FirstOrDefaultAsync();
 
             if (article == null)

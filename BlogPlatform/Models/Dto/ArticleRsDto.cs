@@ -11,7 +11,7 @@ namespace BlogPlatform.Models.Dto
         public AuthorDto Author { get; set; }
         public string ImageUrl { get; set; }
         public List<string> Tags { get; set; }
-        //public List<Comment> Comments {get; set; }
+        public List<CommentDto> Comments {get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
