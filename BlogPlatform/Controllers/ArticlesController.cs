@@ -9,6 +9,7 @@ using BlogPlatform.Models.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using X.PagedList;
 
 namespace BlogPlatform.Controllers
 {
@@ -25,15 +26,17 @@ namespace BlogPlatform.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ArticleRsDto>>> GetArticles(string search)
+        public async Task<ActionResult<IPagedList<ArticleRsDto>>> GetArticles([FromQuery] ArticlesRequestParams requestParams)
         {
-            if (string.IsNullOrEmpty(search))
+            if (string.IsNullOrEmpty(requestParams.Search))
             {
                 var articles =  await _context.Articles
                     .Include(u => u.Author)
                     .Include(at => at.ArticleTags)
                     .ThenInclude(t => t.Tag)
-                    .ToListAsync();
+                    .OrderByDescending(a=>a.CreatedAt)
+                    .AsNoTracking()
+                    .ToPagedListAsync(requestParams.Page, 10);
                 return Ok(_mapper.Map<IEnumerable<ArticleRsDto>>(articles));
             }
 
@@ -41,8 +44,9 @@ namespace BlogPlatform.Controllers
                 .Include(u => u.Author)
                 .Include(at => at.ArticleTags)
                 .ThenInclude(t => t.Tag)
-                .Where(a => a.Title.Contains(search))
-                .ToListAsync();
+                .Where(a => a.Title.Contains(requestParams.Search))
+                .AsNoTracking()
+                .ToPagedListAsync(requestParams.Page, 10);
             
             return Ok(_mapper.Map<IEnumerable<ArticleRsDto>>(resultArticles));
         }
@@ -82,10 +86,20 @@ namespace BlogPlatform.Controllers
             article.AuthorId = user.Id;
             article.CreatedAt = DateTime.Now;
             _context.Articles.Add(article);
+            
+            // only add if tag not exists
             foreach (var tag in article.Tags)
             {
-                var newTag = await _context.Tags.AddAsync(new Tag() {Name = tag});
-                await _context.ArticleTags.AddAsync(new ArticleTag() {Article = article, Tag = newTag.Entity});
+                if (_context.Tags.Any(x => x.Name == tag))
+                {
+                    var existingTag = await _context.Tags.FirstAsync(t => t.Name == tag);
+                    await _context.ArticleTags.AddAsync(new ArticleTag() {Article = article, Tag = existingTag});
+                }
+                else
+                {
+                    var newTag = await _context.Tags.AddAsync(new Tag() {Name = tag});
+                    await _context.ArticleTags.AddAsync(new ArticleTag() {Article = article, Tag = newTag.Entity});
+                }
             }
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetArticle), new {id = article.ArticleId});
@@ -162,25 +176,19 @@ namespace BlogPlatform.Controllers
         
         
         [HttpGet("{id}/comments")]
-        public async Task<ActionResult<IEnumerable<object>>> GetArticleComments(int id)
+        public async Task<ActionResult<IEnumerable<CommentDto>>> GetArticleComments(int id)
         {
-            var article = await _context.Articles
-                .Include(c => c.Comments)
-                .ThenInclude(a=>a.Author)
-                .FirstOrDefaultAsync();
+            var comments = await _context.Comments
+                .Where(c => c.ArticleId == id)
+                .Include(a => a.Author)
+                .ToListAsync();
             
-            if (article == null)
+            if (comments == null)
             {
                 return NotFound();
             }
 
-            return article.Comments.ToList().Select(x => new
-            {
-                Author = x.Author,
-                Body = x.Body,
-                CreatedAt = x.CreatedAt,
-                CommentId = x.CommentId
-            }).ToList();
+            return Ok(_mapper.Map<IEnumerable<CommentDto>>(comments));
         }
         
         [HttpPost("{id}/comments")]
@@ -211,11 +219,11 @@ namespace BlogPlatform.Controllers
             return CreatedAtAction(nameof(GetArticleComments), new {id = article.ArticleId});
         }
         
-        [HttpDelete("{id}/comments/{commentId}")]
+        [HttpDelete("{articleId}/comments/{commentId}")]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<Comment>>> DeleteComment(int id)
+        public async Task<ActionResult<IEnumerable<Comment>>> DeleteComment(int commentId)
         {
-            var comment = await _context.Comments.FindAsync(id);
+            var comment = await _context.Comments.FindAsync(commentId);
             if (comment == null)
             {
                 return NotFound();
