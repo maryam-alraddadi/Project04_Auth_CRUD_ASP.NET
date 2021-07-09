@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, NavLink } from "react-router-dom";
+import { filterHtml } from "../../services/filter";
 
 const ArticlePreview = ({ article }) => {
   console.log(article);
@@ -9,10 +10,11 @@ const ArticlePreview = ({ article }) => {
       month: "short",
     })} ${date.getFullYear()}`;
   };
+
   return (
-    <div class="max-w-4xl my-4 shadow-sm">
+    <div class="max-w-4xl my-4 ">
       <div class="md:flex md:mx-auto h-64">
-        <div class="relative w-full md:w-11/12 px-4 py-4 bg-white rounded-lg">
+        <div class="relative w-full md:w-11/12 px-4 py-4 bg-white rounded-lg shadow-sm">
           <div class="flex items-center justify-between">
             <h2 class="font-noto text-xl text-gray-800 font-medium ">
               <Link
@@ -29,20 +31,22 @@ const ArticlePreview = ({ article }) => {
             </p>
           </div>
           <p className="text-gray-400 font-noto font-light pt-2">
-            {article.author}
+            {article.author.displayName}
           </p>
-          {/* Lorem, ipsum dolor sit amet consectetur Amet veritatis ipsam
-            reiciendis numquam tempore commodi ipsa suscipit laboriosam, sit
-            earum at sequ adipisicing elit. Amet veritatis ipsam reiciendis
-            numquam tempore commodi ipsa suscipit laboriosam, sit earum at
-            sequi. */}
-          <p
-            class="text-sm text-gray-700 mt-4"
-            dangerouslySetInnerHTML={{
-              __html: article.body.trim().substring(0, 210),
-            }}
-          ></p>
-
+          <div className="flex items-center justify-between">
+            <p
+              class="text-sm text-gray-700 mt-4"
+              dangerouslySetInnerHTML={{
+                __html: filterHtml(article.body),
+              }}
+            ></p>
+            <img
+              className={`${
+                article.imageUrl ? "" : "hidden"
+              } object-cover w-52 h-36 pl-5`}
+              src={article.imageUrl}
+            />
+          </div>
           <div class="absolute bottom-4 mt-4 top-auto">
             <Link
               className="bg-white  font-noto text-green-700"

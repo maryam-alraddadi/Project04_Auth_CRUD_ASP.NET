@@ -7,7 +7,22 @@ import CommentForm from "../comments/CommentForm";
 import Comment from "../comments/Comment";
 
 const ArticlePage = (props) => {
-  const [article, setArticle] = useState({});
+  const [article, setArticle] = useState({
+    articleId: null,
+    title: "",
+    body: "",
+    author: {
+      email: "",
+      displayName: "",
+      bio: null,
+      imageUrl: null,
+      dateJoined: "",
+    },
+    imageUrl: "",
+    tags: [],
+    comments: [],
+    createdAt: "",
+  });
   const [date, setDate] = useState("");
   const [comments, setComments] = useState([]);
   const { user, isAuthenticated } = useContext(AuthContext);
@@ -17,6 +32,7 @@ const ArticlePage = (props) => {
     const id = parseInt(params.articleId);
     ArticleService.getArticleById(id).then((res) => {
       setArticle(res.data);
+      console.log(res);
       let date = new Date(res.data.createdAt);
       setDate(
         `${date.getDate()} ${date.toLocaleString("default", {
@@ -28,7 +44,8 @@ const ArticlePage = (props) => {
         setComments(res.data);
       });
     });
-  }, [comments]);
+    console.log(article);
+  }, []);
 
   const getParams = (pathname) => {
     const matchTag = matchPath(pathname, {
@@ -53,12 +70,18 @@ const ArticlePage = (props) => {
           {article.title}
         </div>
         <span className="w-full text-gray-600 font-thin italic px-5">
-          By <strong className="text-gray-700">{article.author}</strong>
+          By{" "}
+          <strong className="text-gray-700">
+            {article.author.displayName}
+          </strong>
           <span className="px-3 text-gray-400">•</span>
           {date}
         </span>
+        <div className="mx-5 mt-7">
+          <img src={article.imageUrl} className="w-full" />
+        </div>
       </div>
-      <div className="w-full text-gray-600 text-normal mx-5">
+      <div className="text-gray-600 text-normal mx-5">
         <div dangerouslySetInnerHTML={{ __html: article.body }}></div>
       </div>
       <div className="mx-5 my-3 text-sm">
@@ -67,14 +90,14 @@ const ArticlePage = (props) => {
               return (
                 <span
                   key={index}
-                  className="text-sm font-light bg-gray-100 py-1 px-2 mx-1.5 rounded text-gray-500 align-middle"
+                  className="text-sm font-light bg-gray-100 py-1 px-2 mr-2 rounded text-gray-500 align-middle"
                 >
-                  {tag.name}
+                  {tag}
                 </span>
               );
             })
           : null}{" "}
-        {isAuthenticated && user.username === article.author ? (
+        {isAuthenticated && user.username === article.author.email ? (
           <div className=" float-right">
             <Link
               to={{
@@ -103,7 +126,13 @@ const ArticlePage = (props) => {
         <div className="h-9 border-b mb-7"></div>
         <div>
           {comments.map((comment, index) => {
-            return <Comment key={index} comment={comment} />;
+            return (
+              <Comment
+                key={comment.commentId}
+                comment={comment}
+                articleId={article.articleId}
+              />
+            );
           })}
           {isAuthenticated ? (
             <CommentForm articleId={article.articleId} />

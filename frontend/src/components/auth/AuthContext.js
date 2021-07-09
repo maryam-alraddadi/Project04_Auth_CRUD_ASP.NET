@@ -16,7 +16,7 @@ const AuthProvider = ({ children }) => {
         username: data.username,
         displayName: data.displayName,
         bio: data.bio,
-        imageUrl: "",
+        imageUrl: data.imageUrl,
         articles: data.articles,
       });
       setIsAuthenticated(data.isAuthenticated);

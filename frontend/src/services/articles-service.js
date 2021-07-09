@@ -10,6 +10,10 @@ const getArticlesByTag = (tagId) => {
   return axios.get(`/api/tags/${tagId}`);
 };
 
+const getArticlesByUsername = (username) => {
+  return axios.get(`${API_URL}/user/${username}`);
+};
+
 const getArticleById = (articleId) => {
   return axios.get(`${API_URL}/${articleId}`);
 };
@@ -26,10 +30,6 @@ const deleteArticle = (articleId) => {
   return axios.delete(`${API_URL}/${articleId}`);
 };
 
-const addArticleTags = (articleId, tags) => {
-  return axios.post(`${API_URL}/${articleId}/tags`, tags);
-};
-
 const getArticleComments = (articleId) => {
   return axios.get(`${API_URL}/${articleId}/comments`);
 };
@@ -39,17 +39,18 @@ const addArticleComment = (articleId, comment) => {
 };
 
 const deleteArticleComment = (articleId, commentId) => {
+  console.log(`${API_URL}/${articleId}/comments/${commentId}`);
   return axios.delete(`${API_URL}/${articleId}/comments/${commentId}`);
 };
 
 const ArticlesService = {
   getArticles,
-  getArticlesByTag,
   getArticleById,
+  getArticlesByTag,
+  getArticlesByUsername,
   addArticle,
   editArticle,
   deleteArticle,
-  addArticleTags,
   getArticleComments,
   addArticleComment,
   deleteArticleComment,
