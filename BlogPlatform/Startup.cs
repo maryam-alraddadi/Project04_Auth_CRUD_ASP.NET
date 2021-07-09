@@ -39,6 +39,8 @@ namespace BlogPlatform
             services.ConfigureJwt(Configuration);
 
             services.AddScoped<IAuthManager, AuthManager>();
+            services.AddScoped<IUploadService, UploadService>();
+            
             services.AddControllersWithViews()
                 .AddNewtonsoftJson(options =>
                     options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
