@@ -4,7 +4,7 @@ import TagsList from "./articles/TagsList";
 import { Link, matchPath } from "react-router-dom";
 import { AuthContext } from "./auth/AuthContext";
 import ArticleService from "../services/articles-service";
-
+import Spinner from "./Spinner";
 const Home = (props) => {
   const [articles, setArticles] = useState([]);
   const [tagId, setTagId] = useState(0);
@@ -14,22 +14,42 @@ const Home = (props) => {
   useEffect(() => {
     var params = getParams(props.location.pathname);
     setTagId(parseInt(params.tagId));
-  }, [props.location.pathname]);
+    console.log(props.location.pathname);
+    console.log(tagId);
+  }, []);
 
   useEffect(() => {
+    console.log(tagId);
     if (tagId == 0 || tagId == null || !tagId) {
       ArticleService.getArticles().then((res) => {
+        console.log(res);
         setArticles(res.data);
         setLoading(false);
       });
     } else {
       ArticleService.getArticlesByTag(tagId).then((res) => {
         console.log(res);
-        setArticles(res.data.articleTags);
+        setArticles(res.data);
         setLoading(false);
       });
     }
-  }, [tagId]);
+  }, [props.location.pathname]);
+
+  // useEffect(() => {
+  //   if (tagId == 0 || tagId == null || !tagId) {
+  //     ArticleService.getArticles().then((res) => {
+  //       console.log(res);
+  //       setArticles(res.data);
+  //       setLoading(false);
+  //     });
+  //   } else {
+  //     ArticleService.getArticlesByTag(tagId).then((res) => {
+  //       console.log(res);
+  //       setArticles(res.data);
+  //       setLoading(false);
+  //     });
+  //   }
+  // }, [tagId]);
 
   const getParams = (pathname) => {
     const matchTag = matchPath(pathname, {
@@ -53,7 +73,7 @@ const Home = (props) => {
                   {isAuthenticated ? (
                     <Link
                       to={{
-                        pathname: "/articles/new",
+                        pathname: "/new/articles",
                         state: { actionType: "ADD" },
                       }}
                     >
@@ -68,13 +88,7 @@ const Home = (props) => {
                 </div>
               </div>
 
-              {loading ? (
-                <div className="fixed top-0 right-0 h-screen w-screen z-50 flex justify-center items-center">
-                  <div className="loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-14 w-14"></div>
-                </div>
-              ) : (
-                <ArticlesList articles={articles} />
-              )}
+              {loading ? <Spinner /> : <ArticlesList articles={articles} />}
             </div>
           </div>
         </div>

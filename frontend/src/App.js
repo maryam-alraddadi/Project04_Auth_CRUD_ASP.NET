@@ -27,11 +27,7 @@ const App = () => {
             path="/home/tags/:tagId"
             render={(props) => <Home {...props} />}
           />
-          <AuthenticatedRoute
-            exact
-            path="/articles/new"
-            component={ArticleEditor}
-          />
+          <Route path="/new/articles" component={ArticleEditor} />
 
           <AuthenticatedRoute
             exact
